@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventario DAE | Detalle</title>
+<style>
+  :root {
+    --bg: #0e0f10;
+    --card: #1a1b1c;
+    --border: #2a2b2c;
+    --border-strong: #3a3b3c;
+    --text: #f2f2f0;
+    --text-muted: #9a9a96;
+    --text-dim: #c9c9c5;
+    --green: #5DCAA5;
+    --red: #F09595;
+    --amber: #EF9F27;
+    --purple: #B4A9EC;
+    --blue: #85B7EB;
+    --teal: #9FE1CB;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    width: 100%;
+    background: var(--bg);
+    overflow: hidden;
+  }
+
+  /*
+    ESCALADO AUTOMÁTICO SIN SCROLL
+    ---------------------------------------------------
+    Un script mide el alto real del contenido y lo compara con el
+    alto de la pantalla. Si el contenido es más alto que la pantalla,
+    se encoge automáticamente (todo proporcional, sin deformar nada)
+    hasta que quepa exacto. Así nunca aparece una barra de scroll.
+    No hace falta tocar nada de esta sección para actualizar datos.
+  */
+  #stage {
+    width: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 2.4vh 2.4vh;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    transform-origin: top left;
+  }
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 2.2vh;
+  }
+
+  .header h1 { font-size: 2.7vh; font-weight: 500; }
+  .header .timestamp { font-size: 1.5vh; color: var(--text-muted); }
+
+  .kpi-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.7fr 1fr;
+    gap: 1.2vh;
+    margin-bottom: 2vh;
+  }
+
+  .kpi-card {
+    background: var(--card);
+    border-radius: 1.2vh;
+    padding: 1.8vh 1.8vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+  }
+
+  .kpi-card .label { font-size: 1.3vh; color: var(--text-muted); }
+  .kpi-card .value { font-size: 3vh; font-weight: 500; margin-top: 0.4vh; }
+  .kpi-card .value .pct { font-size: 1.3vh; color: var(--text-muted); font-weight: 400; }
+
+  .kpi-oos { display: grid; grid-template-columns: 1fr 1fr; align-items: center; }
+  .kpi-oos .oos-left { display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .kpi-oos .breakdown {
+    font-size: 1.3vh;
+    color: var(--text-dim);
+    white-space: nowrap;
+    border-left: 1px solid var(--border);
+    padding-left: 1.8vh;
+    margin-left: 1.8vh;
+    line-height: 1.7;
+    text-align: left;
+  }
+
+  .value.green { color: var(--green); }
+  .value.red { color: var(--red); }
+  .value.amber { color: var(--amber); }
+
+  .fleet-bar-card {
+    background: var(--card);
+    border-radius: 1.2vh;
+    padding: 1.3vh 2vh;
+    margin-bottom: 2.2vh;
+  }
+  .fleet-bar-track { display: flex; height: 2.6vh; border-radius: 0.6vh; overflow: hidden; }
+  .fleet-bar-seg { display: flex; align-items: center; justify-content: center; font-size: 1.5vh; font-weight: 700; }
+  .fleet-bar-legend { display: flex; gap: 1.6vh; font-size: 1.2vh; color: var(--text-dim); margin-top: 0.7vh; flex-wrap: wrap; }
+
+  .niveles-table th:first-child, .niveles-table td:first-child { width: 22%; }
+  .nivel-bar-row { display: flex; height: 2.6vh; border-radius: 0.5vh; overflow: hidden; font-size: 1.3vh; font-weight: 700; }
+  .nivel-bar-seg { display: flex; align-items: center; justify-content: center; }
+  .niveles-legend { display: flex; gap: 1.6vh; font-size: 1.15vh; color: var(--text-muted); margin-top: 0.9vh; }
+  .niveles-legend .item { display: flex; flex-direction: column; line-height: 1.5; }
+
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 2.8vh;
+    margin-bottom: 2.6vh;
+  }
+
+  .section-card {
+    background: var(--card);
+    border-radius: 1.2vh;
+    padding: 1.8vh 2vh;
+  }
+
+  .section-title { font-size: 1.5vh; color: var(--text-muted); margin-bottom: 1vh; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 1.55vh; table-layout: fixed; }
+  th { font-weight: 400; color: var(--text-muted); padding: 0.6vh 6px; }
+  th.oos-header { color: var(--red); text-align: center; border-bottom: 2px solid var(--red); }
+  td { padding: 1.2vh 6px; border-top: 1px solid var(--border); }
+
+  .oos-table th:first-child, .oos-table td:first-child,
+  .niveles-table th:first-child, .niveles-table td:first-child { text-align: left; }
+  .oos-table th:not(:first-child), .oos-table td:not(:first-child) { text-align: center; }
+
+  .loc-name { font-weight: 500; }
+  .disp-val { color: var(--green); }
+  .oos-val { color: var(--red); font-weight: 500; }
+  .nivel-a-head { color: var(--purple); }
+  .nivel-b-head { color: var(--blue); }
+  .nivel-c-head { color: var(--teal); }
+
+  .total-row td { border-top: 2px solid var(--border-strong); font-weight: 500; padding-top: 1.6vh; }
+  .total-row .nivel-a { color: var(--purple); }
+  .total-row .nivel-b { color: var(--blue); }
+  .total-row .nivel-c { color: var(--teal); }
+
+  .bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+    gap: 2.8vh;
+  }
+
+  .proyecto-hero { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.4vh; }
+  .proyecto-hero-item { text-align: center; }
+  .proyecto-hero-item .num { font-size: 4vh; font-weight: 500; }
+  .proyecto-hero-item .name { font-size: 1.4vh; color: var(--text-muted); margin-top: 0.6vh; }
+  .proyecto-hero-item .pct { font-size: 1.3vh; margin-top: 0.2vh; }
+  .proyecto-notas { border-top: 1px solid var(--border); margin-top: 1.8vh; padding-top: 1.6vh; font-size: 1.5vh; color: var(--text-muted); line-height: 1.8; }
+  .proyecto-notas b { color: var(--text-dim); font-weight: 500; }
+  .samsara-card {
+    background: var(--card);
+    border-radius: 1.2vh;
+    padding: 3vh 2.6vh;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2vh;
+    align-items: center;
+    height: 100%;
+  }
+
+  .samsara-donut-wrap { display: flex; flex-direction: column; align-items: center; gap: 1.6vh; }
+  .donut { width: 15vh; height: 15vh; border-radius: 50%; position: relative; }
+  .donut::after { content: ""; position: absolute; inset: 22%; background: var(--card); border-radius: 50%; }
+  .samsara-stats { font-size: 2vh; color: var(--text-dim); text-align: center; line-height: 1.8; }
+
+  .samsara-pending { border-left: 1px solid var(--border); padding-left: 2.2vh; }
+  .samsara-pending .title { font-size: 1.6vh; color: var(--text-muted); margin-bottom: 1.6vh; }
+  .samsara-pending .list { font-size: 2vh; color: var(--text-dim); line-height: 2.3; }
+
+</style>
+</head>
+<body>
+  <div id="stage">
+    <div class="header">
+      <h1>Inventario DAE | Detalle</h1>
+      <div class="timestamp" id="timestamp">Cargando...</div>
+    </div>
+
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="label">Flota total</div>
+        <div class="value" id="kpi-flota">—</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">Disponibles</div>
+        <div class="value green" id="kpi-disponible">—</div>
+      </div>
+      <div class="kpi-card kpi-oos">
+        <div class="oos-left">
+          <div class="label">OOS</div>
+          <div class="value red" id="kpi-oos">—</div>
+        </div>
+        <div class="breakdown" id="kpi-oos-breakdown">—</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">Gap vs meta</div>
+        <div class="value amber" id="kpi-gap">—</div>
+      </div>
+    </div>
+
+    <div class="fleet-bar-card">
+      <div class="fleet-bar-track" id="fleet-bar-track"></div>
+      <div class="fleet-bar-legend" id="fleet-bar-legend"></div>
+    </div>
+
+    <div class="main-grid">
+      <div class="section-card">
+        <div class="section-title">Disponibilidad y OOS por ubicación</div>
+        <table class="oos-table">
+          <thead>
+            <tr><th></th><th></th><th colspan="4" class="oos-header">OOS</th></tr>
+            <tr><th>Ubicación</th><th>Disp.</th><th>Total</th><th>Mec.</th><th>Legal</th><th>Gest.</th></tr>
+          </thead>
+          <tbody id="oos-tbody"></tbody>
+        </table>
+      </div>
+      <div class="section-card" style="display:flex; flex-direction:column; height:100%; justify-content:center;">
+        <div class="section-title">Proyecto</div>
+        <div class="proyecto-hero" id="proyecto-hero"></div>
+        <div class="proyecto-notas" id="proyecto-notas"></div>
+      </div>
+    </div>
+
+    <div class="bottom-grid">
+      <div class="section-card">
+        <div class="section-title">Samsara</div>
+        <div class="samsara-card" style="background:transparent; padding:0;">
+          <div class="samsara-donut-wrap">
+            <div class="donut" id="samsara-donut"></div>
+            <div class="samsara-stats" id="samsara-stats"></div>
+          </div>
+          <div class="samsara-pending">
+            <div class="title">Pendientes de instalar</div>
+            <div class="list" id="samsara-pending-list"></div>
+          </div>
+        </div>
+      </div>
+      <div class="section-card">
+        <div class="section-title">Niveles por ubicación</div>
+        <table class="niveles-table">
+          <thead>
+            <tr><th>Ubicación</th><th style="font-size:1.75vh;"><b style="color:#7F77DD;">Nivel A</b> / <b style="color:#378ADD;">Nivel B</b> / <b style="color:#1D9E75;">Nivel C</b></th></tr>
+          </thead>
+          <tbody id="niveles-tbody"></tbody>
+        </table>
+        <div class="niveles-legend" id="niveles-legend"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ============================================================
+   DATOS DEL DASHBOARD
+   ------------------------------------------------------------
+   Para actualizar el tablero manualmente, edita los valores
+   de este objeto y guarda el archivo. No hace falta tocar
+   nada más abajo de esta sección.
+   ============================================================ */
+const DATA = {
+  ultimaActualizacion: "29 jul 2026, 11:00",
+
+  flotaTotal: 702,
+  disponible: { valor: 592, pct: 84 },
+  oos: { valor: 110, pct: 16, mecanica: 74, legal: 20, gestion: 16 },
+  gap: { valor: 59, pct: 8 },
+
+  ubicaciones: [
+    { nombre: "Aleph",     disponible: 101, dispPct: 92, oos: 9,  oosPct: 8,  mecanica: 5,  legal: 1, gestion: 3,
+      nivelA: 35, nivelAPct: 32, nivelB: 55, nivelBPct: 50, nivelC: 19, nivelCPct: 17 },
+    { nombre: "Artz",      disponible: 78,  dispPct: 88, oos: 11, oosPct: 12, mecanica: 5,  legal: 4, gestion: 2,
+      nivelA: 25, nivelAPct: 28, nivelB: 50, nivelBPct: 57, nivelC: 13, nivelCPct: 15 },
+    { nombre: "Monumento", disponible: 141, dispPct: 88, oos: 19, oosPct: 12, mecanica: 10, legal: 7, gestion: 2,
+      nivelA: 53, nivelAPct: 34, nivelB: 86, nivelBPct: 54, nivelC: 19, nivelCPct: 12 },
+    { nombre: "San Pedro", disponible: 143, dispPct: 85, oos: 25, oosPct: 15, mecanica: 16, legal: 4, gestion: 5,
+      nivelA: 78, nivelAPct: 46, nivelB: 51, nivelBPct: 30, nivelC: 40, nivelCPct: 24 },
+    { nombre: "Torre Mex.", disponible: 129, dispPct: 90, oos: 14, oosPct: 10, mecanica: 7,  legal: 4, gestion: 3,
+      nivelA: 45, nivelAPct: 31, nivelB: 86, nivelBPct: 60, nivelC: 13, nivelCPct: 9 }
+  ],
+
+  nivelesTotal: { a: 236, aPct: 35, b: 328, bPct: 49, c: 104, cPct: 16 },
+
+  proyecto: [
+    { nombre: "Flota base", valor: 591, pct: 84, color: "var(--text)",
+      nota: null },
+    { nombre: "LTO → DAE",  valor: 90,  pct: 13, color: "var(--amber)",
+      nota: "<b>LTO → DAE:</b> Unidades que LTO arrienda a DAE. Eventualmente regresarán a LTO." },
+    { nombre: "Testing",    valor: 21,  pct: 3,  color: "#7F77DD",
+      nota: "<b>Testing:</b> Modelos en periodo de prueba, utilizados para recopilar información de su desempeño en operación." }
+  ],
+
+  samsara: {
+    instalado: 608, instaladoPct: 87,
+    pendiente: 94, pendientePct: 13,
+    pendientesPorUbicacion: [
+      { nombre: "Aleph", pendientes: 35 },
+      { nombre: "San Pedro", pendientes: 35 },
+      { nombre: "Monumento", pendientes: 9 },
+      { nombre: "Torre Mex.", pendientes: 2 },
+      { nombre: "Artz", pendientes: 2 }
+    ]
+  }
+};
+/* ============================================================
+   FIN DE LOS DATOS
+   ============================================================ */
+
+document.getElementById('timestamp').textContent = 'Última actualización: ' + DATA.ultimaActualizacion;
+document.getElementById('kpi-flota').textContent = DATA.flotaTotal;
+document.getElementById('kpi-disponible').innerHTML = `${DATA.disponible.valor} <span class="pct">${DATA.disponible.pct}%</span>`;
+document.getElementById('kpi-oos').innerHTML = `${DATA.oos.valor} <span class="pct">${DATA.oos.pct}%</span>`;
+document.getElementById('kpi-oos-breakdown').innerHTML = `Mecánica ${DATA.oos.mecanica}<br>Legal ${DATA.oos.legal}<br>En gestión ${DATA.oos.gestion}`;
+document.getElementById('kpi-gap').innerHTML = `${DATA.gap.valor} <span class="pct">${DATA.gap.pct}%</span>`;
+
+// Barra de estado de la flota
+const disp = DATA.disponible.valor, mec = DATA.oos.mecanica, leg = DATA.oos.legal, ges = DATA.oos.gestion, total = DATA.flotaTotal;
+const dispPct = Math.round(disp/total*100), mecPct = Math.round(mec/total*100), legPct = Math.round(leg/total*100), gesPct = Math.round(ges/total*100);
+document.getElementById('fleet-bar-track').innerHTML = `
+  <div class="fleet-bar-seg" style="width:${dispPct}%; background:var(--green); color:#04342C;">${dispPct}%</div>
+  <div class="fleet-bar-seg" style="width:${mecPct}%; background:var(--amber); color:#412402;">${mecPct}%</div>
+  <div class="fleet-bar-seg" style="width:${legPct}%; background:var(--red);"></div>
+  <div class="fleet-bar-seg" style="width:${gesPct}%; background:#7F77DD;"></div>`;
+document.getElementById('fleet-bar-legend').innerHTML = `
+  <span><span style="color:var(--green);">●</span> Disponible</span>
+  <span><span style="color:var(--amber);">●</span> Mecánica</span>
+  <span><span style="color:var(--red);">●</span> Legal ${legPct}%</span>
+  <span><span style="color:#7F77DD;">●</span> En gestión ${gesPct}%</span>`;
+
+const oosBody = document.getElementById('oos-tbody');
+DATA.ubicaciones.forEach(u => {
+  oosBody.innerHTML += `<tr>
+    <td class="loc-name">${u.nombre}</td>
+    <td class="disp-val">${u.disponible} (${u.dispPct}%)</td>
+    <td class="oos-val">${u.oos} (${u.oosPct}%)</td>
+    <td>${u.mecanica}</td><td>${u.legal}</td><td>${u.gestion}</td>
+  </tr>`;
+});
+
+const nivelesBody = document.getElementById('niveles-tbody');
+function segLabel(count, pct) {
+  return pct < 12 ? `${pct}%` : `${count} · ${pct}%`;
+}
+DATA.ubicaciones.forEach(u => {
+  nivelesBody.innerHTML += `<tr>
+    <td class="loc-name">${u.nombre}</td>
+    <td>
+      <div class="nivel-bar-row">
+        <div class="nivel-bar-seg" style="width:${u.nivelAPct}%; background:var(--purple); color:#26215C;">${segLabel(u.nivelA, u.nivelAPct)}</div>
+        <div class="nivel-bar-seg" style="width:${u.nivelBPct}%; background:var(--blue); color:#042C53;">${segLabel(u.nivelB, u.nivelBPct)}</div>
+        <div class="nivel-bar-seg" style="width:${u.nivelCPct}%; background:var(--teal); color:#04342C;">${segLabel(u.nivelC, u.nivelCPct)}</div>
+      </div>
+    </td>
+  </tr>`;
+});
+document.getElementById('niveles-legend').innerHTML = `
+  <div class="item"><span><span style="color:var(--purple);">●</span> Nivel A</span><span>(${DATA.nivelesTotal.a}, ${DATA.nivelesTotal.aPct}%)</span></div>
+  <div class="item"><span><span style="color:var(--blue);">●</span> Nivel B</span><span>(${DATA.nivelesTotal.b}, ${DATA.nivelesTotal.bPct}%)</span></div>
+  <div class="item"><span><span style="color:var(--teal);">●</span> Nivel C</span><span>(${DATA.nivelesTotal.c}, ${DATA.nivelesTotal.cPct}%)</span></div>`;
+
+document.getElementById('proyecto-hero').innerHTML = DATA.proyecto.map(p => `
+  <div class="proyecto-hero-item">
+    <div class="num" style="color:${p.color}">${p.valor}</div>
+    <div class="name">${p.nombre}</div>
+    <div class="pct" style="color:${p.color}">${p.pct}%</div>
+  </div>`).join('');
+
+document.getElementById('proyecto-notas').innerHTML = DATA.proyecto
+  .filter(p => p.nota)
+  .map(p => p.nota)
+  .join('<br>');
+
+document.getElementById('samsara-donut').style.background =
+  `conic-gradient(var(--green) 0% ${DATA.samsara.instaladoPct}%, var(--border) ${DATA.samsara.instaladoPct}% 100%)`;
+document.getElementById('samsara-stats').innerHTML =
+  `Instalado <b style="color:var(--green); font-weight:500;">${DATA.samsara.instalado} (${DATA.samsara.instaladoPct}%)</b><br>
+   Sin instalar <b style="color:var(--red); font-weight:500;">${DATA.samsara.pendiente} (${DATA.samsara.pendientePct}%)</b>`;
+
+document.getElementById('samsara-pending-list').innerHTML = DATA.samsara.pendientesPorUbicacion
+  .map(p => `${p.nombre} <b style="color:var(--red); font-weight:500;">${p.pendientes}</b>`)
+  .join('<br>');
+
+/* ============================================================
+   ESCALADO AUTOMÁTICO PARA EVITAR SCROLL
+   ============================================================ */
+function fitStage() {
+  const stage = document.getElementById('stage');
+  stage.style.transform = 'none';
+  stage.style.width = '100%';
+  const naturalHeight = stage.getBoundingClientRect().height;
+  const scale = Math.min(1, window.innerHeight / naturalHeight);
+  stage.style.width = (100 / scale) + '%';
+  stage.style.transform = `scale(${scale})`;
+}
+window.addEventListener('resize', fitStage);
+fitStage();
+</script>
+</body>
+</html>
