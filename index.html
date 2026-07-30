@@ -274,54 +274,127 @@
    de este objeto y guarda el archivo. No hace falta tocar
    nada más abajo de esta sección.
    ============================================================ */
-const DATA = {
-  ultimaActualizacion: "29 jul 2026, 11:00",
-
-  flotaTotal: 702,
-  disponible: { valor: 592, pct: 84 },
-  oos: { valor: 110, pct: 16, mecanica: 74, legal: 20, gestion: 16 },
-  gap: { valor: 59, pct: 8 },
-
-  ubicaciones: [
-    { nombre: "Aleph",     disponible: 101, dispPct: 92, oos: 9,  oosPct: 8,  mecanica: 5,  legal: 1, gestion: 3,
-      nivelA: 35, nivelAPct: 32, nivelB: 55, nivelBPct: 50, nivelC: 19, nivelCPct: 17 },
-    { nombre: "Artz",      disponible: 78,  dispPct: 88, oos: 11, oosPct: 12, mecanica: 5,  legal: 4, gestion: 2,
-      nivelA: 25, nivelAPct: 28, nivelB: 50, nivelBPct: 57, nivelC: 13, nivelCPct: 15 },
-    { nombre: "Monumento", disponible: 141, dispPct: 88, oos: 19, oosPct: 12, mecanica: 10, legal: 7, gestion: 2,
-      nivelA: 53, nivelAPct: 34, nivelB: 86, nivelBPct: 54, nivelC: 19, nivelCPct: 12 },
-    { nombre: "San Pedro", disponible: 143, dispPct: 85, oos: 25, oosPct: 15, mecanica: 16, legal: 4, gestion: 5,
-      nivelA: 78, nivelAPct: 46, nivelB: 51, nivelBPct: 30, nivelC: 40, nivelCPct: 24 },
-    { nombre: "Torre Mex.", disponible: 129, dispPct: 90, oos: 14, oosPct: 10, mecanica: 7,  legal: 4, gestion: 3,
-      nivelA: 45, nivelAPct: 31, nivelB: 86, nivelBPct: 60, nivelC: 13, nivelCPct: 9 }
-  ],
-
-  nivelesTotal: { a: 236, aPct: 35, b: 328, bPct: 49, c: 104, cPct: 16 },
-
-  proyecto: [
-    { nombre: "Flota base", valor: 591, pct: 84, color: "var(--text)",
-      nota: null },
-    { nombre: "LTO → DAE",  valor: 90,  pct: 13, color: "var(--amber)",
-      nota: "<b>LTO → DAE:</b> Unidades que LTO arrienda a DAE. Eventualmente regresarán a LTO." },
-    { nombre: "Testing",    valor: 21,  pct: 3,  color: "#7F77DD",
-      nota: "<b>Testing:</b> Modelos en periodo de prueba, utilizados para recopilar información de su desempeño en operación." }
-  ],
-
-  samsara: {
-    instalado: 608, instaladoPct: 87,
-    pendiente: 94, pendientePct: 13,
-    pendientesPorUbicacion: [
-      { nombre: "Aleph", pendientes: 35 },
-      { nombre: "San Pedro", pendientes: 35 },
-      { nombre: "Monumento", pendientes: 9 },
-      { nombre: "Torre Mex.", pendientes: 2 },
-      { nombre: "Artz", pendientes: 2 }
-    ]
-  }
-};
 /* ============================================================
-   FIN DE LOS DATOS
+   FUENTE DE DATOS EN VIVO
+   ------------------------------------------------------------
+   El tablero ya no usa números fijos: lee el archivo datos.json
+   de GitHub (el que arma Power Automate cada ~30 min) y calcula
+   todo aquí mismo. Si agregan una ubicación o categoría nueva,
+   este código la reconoce sola — no hace falta tocar nada.
    ============================================================ */
 
+const URL_DATOS = "https://raw.githubusercontent.com/Mikemndzvemo/Dashboard-Inventario/main/datos.json";
+
+const NOMBRE_CORTO = {
+  "Aleph": "Aleph",
+  "Artz": "Artz",
+  "Monumento a la Madre": "Monumento",
+  "San Pedro de los Pinos": "San Pedro",
+  "Torre Mexicana": "Torre Mex.",
+  "Taller VEMO EM": "Taller VEMO"
+};
+
+const NOMBRE_PROYECTO = {
+  "Flota": "Flota base",
+  "LTO -> DAE": "LTO → DAE",
+  "Testing": "Testing"
+};
+
+function pct(parte, total) {
+  return total > 0 ? Math.round((parte / total) * 100) : 0;
+}
+
+function construirDatos(raw) {
+  const unidades = raw.unidades || [];
+
+  // "Flota activa" = unidades cuyo Type hub es "Hub" (excluye testing, fuera, sin asignar).
+  const activas = unidades.filter(u => u["Type hub"] === "Hub");
+  const flotaTotal = activas.length;
+
+  const disponibleUnidades = activas.filter(u => u["Estatus hubs"] === "Disponible");
+  const mecanicaUnidades = activas.filter(u => u["Estatus hubs"] === "Mecanica");
+  const legalUnidades = activas.filter(u => u["Estatus hubs"] === "Legal");
+  const gestionUnidades = activas.filter(u => u["Estatus hubs"] === "En gestion");
+
+  const dispCount = disponibleUnidades.length;
+  const oosCount = mecanicaUnidades.length + legalUnidades.length + gestionUnidades.length;
+
+  // Meta = 95% de la flota activa. Gap = meta - disponibles.
+  const meta = flotaTotal * 0.95;
+  const gap = Math.max(0, Math.round(meta - dispCount));
+
+  // Agrupar por ubicación (dinámico: usa lo que exista en los datos).
+  const ubicacionesSet = [...new Set(activas.map(u => u.location))].sort();
+  const ubicaciones = ubicacionesSet.map(loc => {
+    const enLoc = activas.filter(u => u.location === loc);
+    const total = enLoc.length;
+    const disp = enLoc.filter(u => u["Estatus hubs"] === "Disponible").length;
+    const mec = enLoc.filter(u => u["Estatus hubs"] === "Mecanica").length;
+    const leg = enLoc.filter(u => u["Estatus hubs"] === "Legal").length;
+    const ges = enLoc.filter(u => u["Estatus hubs"] === "En gestion").length;
+    const oos = mec + leg + ges;
+
+    const nivelA = enLoc.filter(u => u.nivel === "Nivel A").length;
+    const nivelB = enLoc.filter(u => u.nivel === "Nivel B").length;
+    const nivelC = enLoc.filter(u => u.nivel === "Nivel C").length;
+
+    return {
+      nombre: NOMBRE_CORTO[loc] || loc,
+      disponible: disp, dispPct: pct(disp, total),
+      oos: oos, oosPct: pct(oos, total),
+      mecanica: mec, legal: leg, gestion: ges,
+      nivelA, nivelAPct: pct(nivelA, total),
+      nivelB, nivelBPct: pct(nivelB, total),
+      nivelC, nivelCPct: pct(nivelC, total)
+    };
+  });
+
+  const nivelATotal = activas.filter(u => u.nivel === "Nivel A").length;
+  const nivelBTotal = activas.filter(u => u.nivel === "Nivel B").length;
+  const nivelCTotal = activas.filter(u => u.nivel === "Nivel C").length;
+
+  // Proyecto se calcula sobre TODAS las unidades (incluye testing, no solo la flota activa).
+  const proyectoGrupos = ["Flota", "LTO -> DAE", "Testing"];
+  const proyecto = proyectoGrupos.map((clave, i) => {
+    const count = unidades.filter(u => u["Proyecto"] === clave).length;
+    const colores = ["var(--text)", "var(--amber)", "#7F77DD"];
+    const notas = [
+      null,
+      "<b>LTO → DAE:</b> Unidades que LTO arrienda a DAE. Eventualmente regresarán a LTO.",
+      "<b>Testing:</b> Modelos en periodo de prueba, utilizados para recopilar información de su desempeño en operación."
+    ];
+    return { nombre: NOMBRE_PROYECTO[clave], valor: count, pct: pct(count, unidades.length), color: colores[i], nota: notas[i] };
+  });
+
+  // Samsara sobre la flota activa.
+  const instaladoCount = activas.filter(u => u["Samsara"] === "Instalado").length;
+  const pendienteCount = activas.filter(u => u["Samsara"] === "No instalado").length;
+  const pendientesPorUbicacion = ubicacionesSet
+    .map(loc => ({
+      nombre: NOMBRE_CORTO[loc] || loc,
+      pendientes: activas.filter(u => u.location === loc && u["Samsara"] === "No instalado").length
+    }))
+    .filter(p => p.pendientes > 0)
+    .sort((a, b) => b.pendientes - a.pendientes);
+
+  return {
+    ultimaActualizacion: new Date(raw.ultimaActualizacion).toLocaleString('es-MX', { dateStyle: 'long', timeStyle: 'short' }),
+    flotaTotal,
+    disponible: { valor: dispCount, pct: pct(dispCount, flotaTotal) },
+    oos: { valor: oosCount, pct: pct(oosCount, flotaTotal), mecanica: mecanicaUnidades.length, legal: legalUnidades.length, gestion: gestionUnidades.length },
+    gap: { valor: gap, pct: pct(gap, flotaTotal) },
+    ubicaciones,
+    nivelesTotal: { a: nivelATotal, aPct: pct(nivelATotal, flotaTotal), b: nivelBTotal, bPct: pct(nivelBTotal, flotaTotal), c: nivelCTotal, cPct: pct(nivelCTotal, flotaTotal) },
+    proyecto,
+    samsara: {
+      instalado: instaladoCount, instaladoPct: pct(instaladoCount, flotaTotal),
+      pendiente: pendienteCount, pendientePct: pct(pendienteCount, flotaTotal),
+      pendientesPorUbicacion
+    }
+  };
+}
+
+function render(DATA) {
 document.getElementById('timestamp').textContent = 'Última actualización: ' + DATA.ultimaActualizacion;
 document.getElementById('kpi-flota').textContent = DATA.flotaTotal;
 document.getElementById('kpi-disponible').innerHTML = `${DATA.disponible.valor} <span class="pct">${DATA.disponible.pct}%</span>`;
@@ -395,6 +468,7 @@ document.getElementById('samsara-stats').innerHTML =
 document.getElementById('samsara-pending-list').innerHTML = DATA.samsara.pendientesPorUbicacion
   .map(p => `${p.nombre} <b style="color:var(--red); font-weight:500;">${p.pendientes}</b>`)
   .join('<br>');
+} // fin de render()
 
 /* ============================================================
    ESCALADO AUTOMÁTICO PARA EVITAR SCROLL
@@ -409,7 +483,31 @@ function fitStage() {
   stage.style.transform = `scale(${scale})`;
 }
 window.addEventListener('resize', fitStage);
-fitStage();
+
+/* ============================================================
+   CARGAR LOS DATOS EN VIVO Y DIBUJAR EL TABLERO
+   ------------------------------------------------------------
+   Si por algún motivo no se puede leer datos.json (sin conexión,
+   el archivo aún no existe, etc.), se muestra un aviso claro en
+   vez de dejar la pantalla en blanco o con datos viejos.
+   ============================================================ */
+async function iniciar() {
+  try {
+    const resp = await fetch(URL_DATOS + '?t=' + Date.now()); // evita caché vieja
+    if (!resp.ok) throw new Error('No se pudo leer datos.json (' + resp.status + ')');
+    const raw = await resp.json();
+    const DATA = construirDatos(raw);
+    render(DATA);
+  } catch (err) {
+    document.getElementById('timestamp').textContent = 'No se pudieron cargar los datos: ' + err.message;
+    console.error(err);
+  }
+  fitStage();
+}
+
+iniciar();
+// Refresca la página sola cada 30 minutos para traer datos nuevos.
+setInterval(() => location.reload(), 30 * 60 * 1000);
 </script>
 </body>
 </html>
