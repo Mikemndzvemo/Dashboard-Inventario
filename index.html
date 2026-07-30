@@ -100,6 +100,103 @@
   .value.red { color: var(--red); }
   .value.amber { color: var(--amber); }
 
+  .btn-menu {
+    background: var(--card);
+    color: var(--text-dim);
+    border: 1px solid var(--border-strong);
+    border-radius: 0.8vh;
+    width: 4.4vh;
+    height: 4.4vh;
+    font-size: 2vh;
+    line-height: 1;
+    cursor: pointer;
+    font-family: inherit;
+    flex-shrink: 0;
+  }
+  .btn-menu:hover { background: var(--border); }
+  .btn-menu.activo { border-color: var(--green); color: var(--green); }
+
+  .panel-filtros {
+    width: 26vw;
+    max-width: 380px;
+    flex-shrink: 0;
+    background: var(--card);
+    border-radius: 1.2vh;
+    padding: 2vh 2.2vh;
+    box-sizing: border-box;
+    overflow-y: auto;
+  }
+  .filtros-grupos { display: flex; flex-direction: column; gap: 1.8vh; }
+  .filtro-grupo-titulo { font-size: 1.5vh; color: var(--text-muted); margin-bottom: 0.8vh; font-weight: 500; }
+  .filtro-chips { display: flex; flex-wrap: wrap; gap: 1vh; }
+  .chip {
+    background: var(--bg);
+    border: 1px solid var(--border-strong);
+    color: var(--text-dim);
+    border-radius: 2vh;
+    padding: 0.9vh 1.8vh;
+    font-size: 1.5vh;
+    cursor: pointer;
+    user-select: none;
+  }
+  .chip:hover { border-color: var(--text-muted); }
+  .chip.activo { background: var(--green); border-color: var(--green); color: #04342C; font-weight: 500; }
+  .btn-limpiar {
+    margin-top: 2vh;
+    background: transparent;
+    color: var(--text-muted);
+    border: none;
+    text-decoration: underline;
+    font-size: 1.4vh;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-limpiar:hover { color: var(--text-dim); }
+
+  .clickable { cursor: pointer; }
+  .clickable:hover { text-decoration: underline; text-decoration-style: dotted; }
+  .donut.clickable:hover { filter: brightness(1.15); }
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .modal-caja {
+    background: var(--card);
+    color: var(--text);
+    border-radius: 1.4vh;
+    width: min(80vw, 900px);
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.8vh 2.2vh;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-titulo { font-size: 1.8vh; font-weight: 500; }
+  .modal-cerrar {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.8vh;
+    cursor: pointer;
+  }
+  .modal-cerrar:hover { color: var(--text); }
+  .modal-cuerpo { padding: 1.4vh 2.2vh 2vh; overflow-y: auto; }
+  .modal-tabla { width: 100%; border-collapse: collapse; font-size: 1.5vh; }
+  .modal-tabla th { text-align: left; color: var(--text-muted); font-weight: 400; padding: 0.8vh 1vh; position: sticky; top: 0; background: var(--card); }
+  .modal-tabla td { padding: 0.9vh 1vh; border-top: 1px solid var(--border); color: var(--text-dim); }
+
   .fleet-bar-card {
     background: var(--card);
     border-radius: 1.2vh;
@@ -190,23 +287,33 @@
 <body>
   <div id="stage">
     <div class="header">
-      <h1>Inventario DAE | Detalle</h1>
+      <div style="display:flex; align-items:center; gap:1.6vh;">
+        <button id="btn-filtros" class="btn-menu" aria-label="Filtros">☰</button>
+        <h1>Inventario DAE | Detalle</h1>
+      </div>
       <div class="timestamp" id="timestamp">Cargando...</div>
     </div>
 
+    <div style="display:flex; gap:2vh; flex:1; min-height:0;">
+      <aside id="panel-filtros" class="panel-filtros" style="display:none;">
+        <div class="filtros-grupos" id="filtros-grupos"></div>
+        <button id="btn-limpiar" class="btn-limpiar">Limpiar filtros</button>
+      </aside>
+
+      <div id="contenido-principal" style="flex:1; min-width:0; display:flex; flex-direction:column;">
     <div class="kpi-row">
       <div class="kpi-card">
         <div class="label">Flota total</div>
-        <div class="value" id="kpi-flota">—</div>
+        <div class="value clickable" id="kpi-flota" data-detalle='{}' data-titulo="Flota total">—</div>
       </div>
       <div class="kpi-card">
         <div class="label">Disponibles</div>
-        <div class="value green" id="kpi-disponible">—</div>
+        <div class="value green clickable" id="kpi-disponible" data-detalle='{"estatus":"Disponible"}' data-titulo="Disponibles">—</div>
       </div>
       <div class="kpi-card kpi-oos">
         <div class="oos-left">
           <div class="label">OOS</div>
-          <div class="value red" id="kpi-oos">—</div>
+          <div class="value red clickable" id="kpi-oos" data-detalle='{"estatusGrupo":"OOS"}' data-titulo="OOS">—</div>
         </div>
         <div class="breakdown" id="kpi-oos-breakdown">—</div>
       </div>
@@ -244,7 +351,7 @@
         <div class="section-title">Samsara</div>
         <div class="samsara-card" style="background:transparent; padding:0;">
           <div class="samsara-donut-wrap">
-            <div class="donut" id="samsara-donut"></div>
+            <div class="donut clickable" id="samsara-donut"></div>
             <div class="samsara-stats" id="samsara-stats"></div>
           </div>
           <div class="samsara-pending">
@@ -257,11 +364,29 @@
         <div class="section-title">Niveles por ubicación</div>
         <table class="niveles-table">
           <thead>
-            <tr><th>Ubicación</th><th style="font-size:1.75vh;"><b style="color:#7F77DD;">Nivel A</b> / <b style="color:#378ADD;">Nivel B</b> / <b style="color:#1D9E75;">Nivel C</b></th></tr>
+            <tr><th>Ubicación</th><th id="niveles-header" style="font-size:1.75vh;">Nivel A / Nivel B / Nivel C</th></tr>
           </thead>
           <tbody id="niveles-tbody"></tbody>
         </table>
-        <div class="niveles-legend" id="niveles-legend"></div>
+      </div>
+    </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-detalle" class="modal-overlay" style="display:none;">
+    <div class="modal-caja">
+      <div class="modal-header">
+        <div id="modal-titulo" class="modal-titulo">Detalle</div>
+        <button id="modal-cerrar" class="modal-cerrar">✕</button>
+      </div>
+      <div class="modal-cuerpo">
+        <table class="modal-tabla">
+          <thead>
+            <tr><th>Placa</th><th>Modelo</th><th>Nivel</th><th>Ubicación</th><th>Estatus</th><th>Samsara</th></tr>
+          </thead>
+          <tbody id="modal-tbody"></tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -340,6 +465,7 @@ function construirDatos(raw) {
 
     return {
       nombre: NOMBRE_CORTO[loc] || loc,
+      locRaw: loc,
       disponible: disp, dispPct: pct(disp, total),
       oos: oos, oosPct: pct(oos, total),
       mecanica: mec, legal: leg, gestion: ges,
@@ -353,17 +479,17 @@ function construirDatos(raw) {
   const nivelBTotal = activas.filter(u => u.nivel === "Nivel B").length;
   const nivelCTotal = activas.filter(u => u.nivel === "Nivel C").length;
 
-  // Proyecto se calcula sobre TODAS las unidades (incluye testing, no solo la flota activa).
+  // Proyecto se calcula sobre la flota activa (Type hub = Hub), igual que todo lo demás.
   const proyectoGrupos = ["Flota", "LTO -> DAE", "Testing"];
   const proyecto = proyectoGrupos.map((clave, i) => {
-    const count = unidades.filter(u => u["Proyecto"] === clave).length;
+    const count = activas.filter(u => u["Proyecto"] === clave).length;
     const colores = ["var(--text)", "var(--amber)", "#7F77DD"];
     const notas = [
       null,
       "<b>LTO → DAE:</b> Unidades que LTO arrienda a DAE. Eventualmente regresarán a LTO.",
       "<b>Testing:</b> Modelos en periodo de prueba, utilizados para recopilar información de su desempeño en operación."
     ];
-    return { nombre: NOMBRE_PROYECTO[clave], valor: count, pct: pct(count, unidades.length), color: colores[i], nota: notas[i] };
+    return { nombre: NOMBRE_PROYECTO[clave], clave, valor: count, pct: pct(count, flotaTotal), color: colores[i], nota: notas[i] };
   });
 
   // Samsara sobre la flota activa.
@@ -372,6 +498,7 @@ function construirDatos(raw) {
   const pendientesPorUbicacion = ubicacionesSet
     .map(loc => ({
       nombre: NOMBRE_CORTO[loc] || loc,
+      locRaw: loc,
       pendientes: activas.filter(u => u.location === loc && u["Samsara"] === "No instalado").length
     }))
     .filter(p => p.pendientes > 0)
@@ -417,38 +544,43 @@ document.getElementById('fleet-bar-legend').innerHTML = `
   <span><span style="color:#7F77DD;">●</span> En gestión ${gesPct}%</span>`;
 
 const oosBody = document.getElementById('oos-tbody');
+oosBody.innerHTML = '';
 DATA.ubicaciones.forEach(u => {
   oosBody.innerHTML += `<tr>
-    <td class="loc-name">${u.nombre}</td>
-    <td class="disp-val">${u.disponible} (${u.dispPct}%)</td>
-    <td class="oos-val">${u.oos} (${u.oosPct}%)</td>
-    <td>${u.mecanica}</td><td>${u.legal}</td><td>${u.gestion}</td>
+    <td class="loc-name clickable" data-detalle='{"location":"${u.locRaw}"}' data-titulo="${u.nombre}">${u.nombre}</td>
+    <td class="disp-val clickable" data-detalle='{"location":"${u.locRaw}","estatus":"Disponible"}' data-titulo="${u.nombre} — Disponible">${u.disponible} (${u.dispPct}%)</td>
+    <td class="oos-val clickable" data-detalle='{"location":"${u.locRaw}","estatusGrupo":"OOS"}' data-titulo="${u.nombre} — OOS">${u.oos} (${u.oosPct}%)</td>
+    <td class="clickable" data-detalle='{"location":"${u.locRaw}","estatus":"Mecanica"}' data-titulo="${u.nombre} — Mecánica">${u.mecanica}</td>
+    <td class="clickable" data-detalle='{"location":"${u.locRaw}","estatus":"Legal"}' data-titulo="${u.nombre} — Legal">${u.legal}</td>
+    <td class="clickable" data-detalle='{"location":"${u.locRaw}","estatus":"En gestion"}' data-titulo="${u.nombre} — En gestión">${u.gestion}</td>
   </tr>`;
 });
 
 const nivelesBody = document.getElementById('niveles-tbody');
+nivelesBody.innerHTML = '';
 function segLabel(count, pct) {
   return pct < 12 ? `${pct}%` : `${count} · ${pct}%`;
 }
 DATA.ubicaciones.forEach(u => {
   nivelesBody.innerHTML += `<tr>
-    <td class="loc-name">${u.nombre}</td>
+    <td class="loc-name clickable" data-detalle='{"location":"${u.locRaw}"}' data-titulo="${u.nombre}">${u.nombre}</td>
     <td>
       <div class="nivel-bar-row">
-        <div class="nivel-bar-seg" style="width:${u.nivelAPct}%; background:var(--purple); color:#26215C;">${segLabel(u.nivelA, u.nivelAPct)}</div>
-        <div class="nivel-bar-seg" style="width:${u.nivelBPct}%; background:var(--blue); color:#042C53;">${segLabel(u.nivelB, u.nivelBPct)}</div>
-        <div class="nivel-bar-seg" style="width:${u.nivelCPct}%; background:var(--teal); color:#04342C;">${segLabel(u.nivelC, u.nivelCPct)}</div>
+        <div class="nivel-bar-seg clickable" data-detalle='{"location":"${u.locRaw}","nivel":"Nivel A"}' data-titulo="${u.nombre} — Nivel A" style="width:${u.nivelAPct}%; background:var(--purple); color:#26215C;">${segLabel(u.nivelA, u.nivelAPct)}</div>
+        <div class="nivel-bar-seg clickable" data-detalle='{"location":"${u.locRaw}","nivel":"Nivel B"}' data-titulo="${u.nombre} — Nivel B" style="width:${u.nivelBPct}%; background:var(--blue); color:#042C53;">${segLabel(u.nivelB, u.nivelBPct)}</div>
+        <div class="nivel-bar-seg clickable" data-detalle='{"location":"${u.locRaw}","nivel":"Nivel C"}' data-titulo="${u.nombre} — Nivel C" style="width:${u.nivelCPct}%; background:var(--teal); color:#04342C;">${segLabel(u.nivelC, u.nivelCPct)}</div>
       </div>
     </td>
   </tr>`;
 });
-document.getElementById('niveles-legend').innerHTML = `
-  <div class="item"><span><span style="color:var(--purple);">●</span> Nivel A</span><span>(${DATA.nivelesTotal.a}, ${DATA.nivelesTotal.aPct}%)</span></div>
-  <div class="item"><span><span style="color:var(--blue);">●</span> Nivel B</span><span>(${DATA.nivelesTotal.b}, ${DATA.nivelesTotal.bPct}%)</span></div>
-  <div class="item"><span><span style="color:var(--teal);">●</span> Nivel C</span><span>(${DATA.nivelesTotal.c}, ${DATA.nivelesTotal.cPct}%)</span></div>`;
+document.getElementById('niveles-header').innerHTML =
+  `<b style="color:#7F77DD;">Nivel A</b> ${DATA.nivelesTotal.a} (${DATA.nivelesTotal.aPct}%) &nbsp;/&nbsp;
+   <b style="color:#378ADD;">Nivel B</b> ${DATA.nivelesTotal.b} (${DATA.nivelesTotal.bPct}%) &nbsp;/&nbsp;
+   <b style="color:#1D9E75;">Nivel C</b> ${DATA.nivelesTotal.c} (${DATA.nivelesTotal.cPct}%)`;
+
 
 document.getElementById('proyecto-hero').innerHTML = DATA.proyecto.map(p => `
-  <div class="proyecto-hero-item">
+  <div class="proyecto-hero-item clickable" data-detalle='{"proyecto":"${p.clave}"}' data-titulo="Proyecto — ${p.nombre}">
     <div class="num" style="color:${p.color}">${p.valor}</div>
     <div class="name">${p.nombre}</div>
     <div class="pct" style="color:${p.color}">${p.pct}%</div>
@@ -461,12 +593,13 @@ document.getElementById('proyecto-notas').innerHTML = DATA.proyecto
 
 document.getElementById('samsara-donut').style.background =
   `conic-gradient(var(--green) 0% ${DATA.samsara.instaladoPct}%, var(--border) ${DATA.samsara.instaladoPct}% 100%)`;
+ULTIMO_SAMSARA_PCT = DATA.samsara.instaladoPct;
 document.getElementById('samsara-stats').innerHTML =
-  `Instalado <b style="color:var(--green); font-weight:500;">${DATA.samsara.instalado} (${DATA.samsara.instaladoPct}%)</b><br>
-   Sin instalar <b style="color:var(--red); font-weight:500;">${DATA.samsara.pendiente} (${DATA.samsara.pendientePct}%)</b>`;
+  `<span class="clickable" data-detalle='{"samsara":"Instalado"}' data-titulo="Samsara instalado">Instalado <b style="color:var(--green); font-weight:500;">${DATA.samsara.instalado} (${DATA.samsara.instaladoPct}%)</b></span><br>
+   <span class="clickable" data-detalle='{"samsara":"No instalado"}' data-titulo="Samsara sin instalar">Sin instalar <b style="color:var(--red); font-weight:500;">${DATA.samsara.pendiente} (${DATA.samsara.pendientePct}%)</b></span>`;
 
 document.getElementById('samsara-pending-list').innerHTML = DATA.samsara.pendientesPorUbicacion
-  .map(p => `${p.nombre} <b style="color:var(--red); font-weight:500;">${p.pendientes}</b>`)
+  .map(p => `<span class="clickable" data-detalle='{"location":"${p.locRaw}","samsara":"No instalado"}' data-titulo="${p.nombre} — Samsara sin instalar">${p.nombre} <b style="color:var(--red); font-weight:500;">${p.pendientes}</b></span>`)
   .join('<br>');
 } // fin de render()
 
@@ -491,11 +624,165 @@ window.addEventListener('resize', fitStage);
    el archivo aún no existe, etc.), se muestra un aviso claro en
    vez de dejar la pantalla en blanco o con datos viejos.
    ============================================================ */
+/* ============================================================
+   SEGMENTADORES (FILTROS INTERACTIVOS)
+   ------------------------------------------------------------
+   Cada categoría (Ubicación, Estatus, Nivel, Modelo, Proyecto,
+   Samsara) se arma dinámicamente a partir de lo que exista en
+   los datos — si aparece un modelo o ubicación nueva, el chip
+   aparece solo, sin tocar este código.
+   ============================================================ */
+
+let TODAS_LAS_UNIDADES = [];
+const filtrosActivos = {
+  location: new Set(), "Estatus hubs": new Set(), nivel: new Set(),
+  modelo: new Set(), "Proyecto": new Set(), "Samsara": new Set()
+};
+
+const GRUPOS_FILTRO = [
+  { campo: "location", titulo: "Ubicación" },
+  { campo: "Estatus hubs", titulo: "Estatus" },
+  { campo: "nivel", titulo: "Nivel" },
+  { campo: "modelo", titulo: "Modelo" },
+  { campo: "Proyecto", titulo: "Proyecto" },
+  { campo: "Samsara", titulo: "Samsara" }
+];
+
+function etiquetaValor(campo, valor) {
+  if (campo === "location") return NOMBRE_CORTO[valor] || valor;
+  if (campo === "Proyecto") return NOMBRE_PROYECTO[valor] || valor;
+  if (campo === "Estatus hubs" && valor === "En gestion") return "En gestión";
+  return valor;
+}
+
+function construirPanelFiltros() {
+  const contenedor = document.getElementById('filtros-grupos');
+  const unidadesActivas = TODAS_LAS_UNIDADES.filter(u => u["Type hub"] === "Hub");
+  contenedor.innerHTML = GRUPOS_FILTRO.map(grupo => {
+    const valores = [...new Set(unidadesActivas.map(u => u[grupo.campo]).filter(v => v))].sort();
+    const chips = valores.map(v => `<span class="chip" data-campo="${grupo.campo}" data-valor="${v}">${etiquetaValor(grupo.campo, v)}</span>`).join('');
+    return `<div>
+      <div class="filtro-grupo-titulo">${grupo.titulo}</div>
+      <div class="filtro-chips">${chips}</div>
+    </div>`;
+  }).join('');
+
+  contenedor.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const campo = chip.dataset.campo, valor = chip.dataset.valor;
+      if (filtrosActivos[campo].has(valor)) {
+        filtrosActivos[campo].delete(valor);
+        chip.classList.remove('activo');
+      } else {
+        filtrosActivos[campo].add(valor);
+        chip.classList.add('activo');
+      }
+      aplicarFiltrosYDibujar();
+    });
+  });
+}
+
+function unidadesFiltradas() {
+  return TODAS_LAS_UNIDADES.filter(u =>
+    Object.entries(filtrosActivos).every(([campo, valores]) =>
+      valores.size === 0 || valores.has(u[campo])
+    )
+  );
+}
+
+function hayFiltrosActivos() {
+  return Object.values(filtrosActivos).some(s => s.size > 0);
+}
+
+function aplicarFiltrosYDibujar() {
+  const filtradas = unidadesFiltradas();
+  const DATA = construirDatos({ ultimaActualizacion: ULTIMA_ACTUALIZACION_RAW, unidades: filtradas });
+  render(DATA);
+  document.getElementById('btn-filtros').classList.toggle('activo', hayFiltrosActivos());
+}
+
+document.getElementById('btn-filtros').addEventListener('click', () => {
+  const panel = document.getElementById('panel-filtros');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  fitStage();
+});
+
+document.getElementById('btn-limpiar').addEventListener('click', () => {
+  Object.values(filtrosActivos).forEach(s => s.clear());
+  document.querySelectorAll('.chip.activo').forEach(c => c.classList.remove('activo'));
+  aplicarFiltrosYDibujar();
+});
+
+let ULTIMA_ACTUALIZACION_RAW = null;
+let ULTIMO_SAMSARA_PCT = 0;
+
+document.getElementById('samsara-donut').addEventListener('click', (e) => {
+  const donut = e.currentTarget;
+  const rect = donut.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+  const dx = e.clientX - cx, dy = e.clientY - cy;
+  let angulo = Math.atan2(dy, dx) * 180 / Math.PI + 90; // 0° = arriba, sentido horario
+  if (angulo < 0) angulo += 360;
+  const umbral = ULTIMO_SAMSARA_PCT / 100 * 360;
+  if (angulo <= umbral) {
+    mostrarDetalle('Samsara — Instalado', { samsara: 'Instalado' });
+  } else {
+    mostrarDetalle('Samsara — Sin instalar', { samsara: 'No instalado' });
+  }
+});
+
+/* ============================================================
+   DETALLE AL HACER CLIC (VER LAS UNIDADES EXACTAS)
+   ============================================================ */
+function unidadesParaDetalle(criterios) {
+  let lista = unidadesFiltradas().filter(u => u["Type hub"] === "Hub");
+  if (criterios.location) lista = lista.filter(u => u.location === criterios.location);
+  if (criterios.estatus) lista = lista.filter(u => u["Estatus hubs"] === criterios.estatus);
+  if (criterios.estatusGrupo === "OOS") lista = lista.filter(u => ["Mecanica", "Legal", "En gestion"].includes(u["Estatus hubs"]));
+  if (criterios.nivel) lista = lista.filter(u => u.nivel === criterios.nivel);
+  if (criterios.samsara) lista = lista.filter(u => u["Samsara"] === criterios.samsara);
+  if (criterios.proyecto) lista = lista.filter(u => u["Proyecto"] === criterios.proyecto);
+  return lista;
+}
+
+function mostrarDetalle(titulo, criterios) {
+  const lista = unidadesParaDetalle(criterios);
+  document.getElementById('modal-titulo').textContent = `${titulo} (${lista.length} unidad${lista.length === 1 ? '' : 'es'})`;
+  document.getElementById('modal-tbody').innerHTML = lista.length
+    ? lista.map(u => `<tr>
+        <td>${u.plate || '—'}</td>
+        <td>${u.modelo || '—'}</td>
+        <td>${u.nivel || '—'}</td>
+        <td>${NOMBRE_CORTO[u.location] || u.location}</td>
+        <td>${etiquetaValor('Estatus hubs', u['Estatus hubs']) || '—'}</td>
+        <td>${u['Samsara'] || '—'}</td>
+      </tr>`).join('')
+    : `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:2vh;">No hay unidades que cumplan este criterio.</td></tr>`;
+  document.getElementById('modal-detalle').style.display = 'flex';
+}
+
+document.getElementById('modal-cerrar').addEventListener('click', () => {
+  document.getElementById('modal-detalle').style.display = 'none';
+});
+document.getElementById('modal-detalle').addEventListener('click', (e) => {
+  if (e.target.id === 'modal-detalle') e.currentTarget.style.display = 'none';
+});
+
+// Un solo clic sobre cualquier elemento con data-detalle abre la ventana de detalle.
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-detalle]');
+  if (!el) return;
+  mostrarDetalle(el.dataset.titulo || 'Detalle', JSON.parse(el.dataset.detalle));
+});
+
 async function iniciar() {
   try {
     const resp = await fetch(URL_DATOS + '?t=' + Date.now()); // evita caché vieja
     if (!resp.ok) throw new Error('No se pudo leer datos.json (' + resp.status + ')');
     const raw = await resp.json();
+    TODAS_LAS_UNIDADES = raw.unidades;
+    ULTIMA_ACTUALIZACION_RAW = raw.ultimaActualizacion;
+    construirPanelFiltros();
     const DATA = construirDatos(raw);
     render(DATA);
   } catch (err) {
